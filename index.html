@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ATCH | AtlasClear Holdings</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+<h1>ATCH | AtlasClear Holdings</h1>
+
+<div class="quote">
+<h2 id="price">$-</h2>
+<p id="change">-</p>
+<p id="date">-</p>
+</div>
+
+<div class="stats">
+<div>
+<b>거래량</b>
+<strong id="vol">-</strong>
+</div>
+<div>
+<b>52주 최고</b>
+<strong id="high52">-</strong>
+</div>
+<div>
+<b>52주 최저</b>
+<strong id="low52">-</strong>
+</div>
+</div>
+
+<h2>주가 차트</h2>
+
+<div class="periods">
+<button onclick="draw(30)">1개월</button>
+<button onclick="draw(90)">3개월</button>
+<button onclick="draw(180)">6개월</button>
+<button onclick="draw(365)">1년</button>
+<button onclick="draw(1254)">전체</button>
+</div>
+
+<canvas id="c"></canvas><div class="ai-card" style="margin-top:20px;"><h2 style="margin-top:0;">📈 이동평균선 MA5 · MA20 · MA60</h2><canvas id="maChart"></canvas><div class="ai-card" style="margin-top:20px;">
+<h2 style="margin-top:0;">📉 MACD (12, 26, 9)</h2>
+<canvas id="macdChart"></canvas><div class="ai-card" style="margin-top:20px;"><h2 style="margin-top:0;">📊 볼린저 밴드 (20, 2)</h2><canvas id="bollingerChart"></canvas></div>
+</div></div>
+
+<div class="ai-card" style="margin-top:15px;"><h2 style="margin-top:0;">📊 RSI (14)</h2><h1 id="rsiValue">-</h1><p id="rsiStatus">계산 중...</p></div><h2>🤖 AI 다음 거래일 예측</h2>
+
+<div class="ai-card">
+<h1 id="prediction">-</h1>
+<p id="predictionInfo">예측 데이터를 불러오는 중...</p>
+</div>
+
+<script>
+let d=[];
+let chart=null;
+
+
+function draw(days){
+if(d.length===0)return;
+
+window.currentDays=days;
+let z=d.slice(-days);
+
+if(chart!==null)chart.destroy();
+
+chart=new Chart(document.getElementById("c"),{
+type:"line",
+data:{
+labels:z.map(x=>x.date.slice(0,10)),
+datasets:[{label:"ATCH",data:z.map(x=>Number(x.close)),tension:0.25,pointRadius:0}]
+},
+options:{
+responsive:true,
+interaction:{mode:"index",intersect:false},
+plugins:{legend:{display:false}}
+}
+});
+}
+
+fetch("atch_stock_data.json")
+.then(r=>r.json())
+.then(data=>{
+d=data;
+
+let x=d[d.length-1];
+
+document.getElementById("price").innerText=
+"$"+Number(x.close).toFixed(3);
+
+document.getElementById("date").innerText=
+x.date.slice(0,10);
+
+let prev=Number(d[d.length-2].close);
+let change=Number(x.close)-prev;
+let pct=change/prev*100;
+
+document.getElementById("change").innerText=
+(change>=0?"▲ +":"▼ ")+
+change.toFixed(3)+" ("+
+pct.toFixed(2)+"%)";
+
+draw(365);
+});
+
+fetch("atch_stats.json")
+.then(r=>r.json())
+.then(v=>{
+document.getElementById("vol").innerText=
+Number(v.volume).toLocaleString();
+
+document.getElementById("high52").innerText=
+"$"+Number(v.high52).toFixed(3);
+
+document.getElementById("low52").innerText=
+"$"+Number(v.low52).toFixed(3);
+});
+
+fetch("atch_prediction.json")
+.then(r=>r.json())
+.then(v=>{
+document.getElementById("prediction").innerText=
+"$"+Number(v.prediction).toFixed(4);
+
+document.getElementById("predictionInfo").innerText=
+"예상 변화 "+
+(v.change>=0?"+":"")+
+Number(v.change).toFixed(1)+
+"% · MAE $"+
+Number(v.mae).toFixed(4)+
+" · RMSE $"+
+Number(v.rmse).toFixed(4);
+});
+</script>
+
+<script src="rsi.js"></script>
+<script src="ma.js"></script><script>
+function drawMACD(days){
+if(!window.macdData)return;
+
+var start=Math.max(0,window.macdData.labels.length-days);
+
+var labels=window.macdData.labels.slice(start);
+var macd=window.macdData.macd.slice(start);
+var signal=window.macdData.signal.slice(start);
+var histogram=window.macdData.histogram.slice(start);
+
+if(window.macdChartObj){
+window.macdChartObj.destroy();
+}
+
+window.macdChartObj=new Chart(
+document.getElementById("macdChart"),
+{
+type:"line",
+data:{
+labels:labels,
+datasets:[
+{
+label:"MACD",
+data:macd,
+tension:0.25,
+pointRadius:0
+},
+{
+label:"Signal",
+data:signal,
+tension:0.25,
+pointRadius:0
+},
+{
+label:"Histogram",
+data:histogram,
+type:"bar"
+}
+]
+},
+options:{
+responsive:true,
+interaction:{
+mode:"index",
+intersect:false
+},
+plugins:{
+legend:{
+display:true
+}
+}
+}
+}
+);
+}
+</script><script src="macd.js"></script><script>
+function drawBollinger(days){
+if(!window.bollingerData)return;
+var start=Math.max(0,window.bollingerData.labels.length-days);
+var labels=window.bollingerData.labels.slice(start);
+var upper=window.bollingerData.upper.slice(start);
+var middle=window.bollingerData.middle.slice(start);
+var lower=window.bollingerData.lower.slice(start);
+if(window.bollingerChartObj)window.bollingerChartObj.destroy();
+window.bollingerChartObj=new Chart(document.getElementById("bollingerChart"),{type:"line",data:{labels:labels,datasets:[{label:"상단 밴드",data:upper,tension:0.25,pointRadius:0},{label:"중간선 MA20",data:middle,tension:0.25,pointRadius:0},{label:"하단 밴드",data:lower,tension:0.25,pointRadius:0}]},options:{responsive:true,interaction:{mode:"index",intersect:false},plugins:{legend:{display:true}}}});
+}
+</script><script src="bollinger.js"></script><script>function drawMA(days){if(!window.maData)return;var start=Math.max(0,window.maData.labels.length-days);var labels=window.maData.labels.slice(start);var ma5=window.maData.ma5.slice(start);var ma20=window.maData.ma20.slice(start);var ma60=window.maData.ma60.slice(start);if(window.maChartObj)window.maChartObj.destroy();window.maChartObj=new Chart(document.getElementById("maChart"),{type:"line",data:{labels:labels,datasets:[{label:"MA5",data:ma5,tension:0.25,pointRadius:0},{label:"MA20",data:ma20,tension:0.25,pointRadius:0},{label:"MA60",data:ma60,tension:0.25,pointRadius:0}]},options:{responsive:true,interaction:{mode:"index",intersect:false},plugins:{legend:{display:true}}}});}</script><div class="ai-card" style="margin-top:20px;"><h2 style="margin-top:0;">📈 스토캐스틱 (14, 3)</h2><canvas id="stochasticChart"></canvas></div><div class="ai-card" style="margin-top:20px;"><h2 style="margin-top:0;">📊 거래량</h2><canvas id="volumeChart"></canvas></div><div class="ai-card" style="margin-top:20px;"><h2 style="margin-top:0;">🚦 종합 매매 신호</h2><h1 id="signalValue">계산 중...</h1><p id="signalScore">점수 계산 중...</p><p id="signalDetails">지표를 분석하는 중...</p></div><script>function drawStochastic(days){if(!window.stochasticData)return;var start=Math.max(0,window.stochasticData.labels.length-days);var labels=window.stochasticData.labels.slice(start),k=window.stochasticData.k.slice(start),d=window.stochasticData.d.slice(start);if(window.stochasticChartObj)window.stochasticChartObj.destroy();window.stochasticChartObj=new Chart(document.getElementById("stochasticChart"),{type:"line",data:{labels:labels,datasets:[{label:"%K",data:k,tension:.2,pointRadius:0},{label:"%D",data:d,tension:.2,pointRadius:0}]},options:{responsive:true,interaction:{mode:"index",intersect:false},scales:{y:{min:0,max:100}},plugins:{legend:{display:true}}}})}function drawVolume(days){if(!window.volumeData)return;var start=Math.max(0,window.volumeData.labels.length-days);var labels=window.volumeData.labels.slice(start),volume=window.volumeData.volume.slice(start),avg=window.volumeData.avg20.slice(start);if(window.volumeChartObj)window.volumeChartObj.destroy();window.volumeChartObj=new Chart(document.getElementById("volumeChart"),{type:"bar",data:{labels:labels,datasets:[{label:"거래량",data:volume},{label:"20일 평균",data:avg,type:"line",tension:.2,pointRadius:0}]},options:{responsive:true,interaction:{mode:"index",intersect:false},plugins:{legend:{display:true}}}})}function showSignal(){if(!window.signalData)return;var x=window.signalData;document.getElementById("signalValue").textContent=x.signal;document.getElementById("signalScore").textContent="종합 점수: "+x.score;document.getElementById("signalDetails").textContent="RSI "+x.rsi.toFixed(1)+" · MACD "+x.macd.toFixed(4)+" · Stochastic "+x.stochastic.toFixed(1)+" · MA20 "+x.ma20.toFixed(3)+" · MA60 "+x.ma60.toFixed(3)+" · 거래량 "+x.volumeRatio.toFixed(2)+"배";}</script><script src="stochastic.js"></script><script src="volume.js"></script><script src="signal.js"></script><div class="ai-card" style="margin-top:20px;"><h2 style="margin-top:0;">🔴 실시간 주가</h2><h1 id="realtimePrice">$-</h1><p id="realtimeInfo">실시간 데이터를 불러오는 중...</p><p id="realtimeVolume">거래량: -</p></div><script>async function loadRealtime(){try{var r=await fetch("realtime_price.json?"+Date.now());var v=await r.json();document.getElementById("realtimePrice").textContent="$"+Number(v.price).toFixed(4);document.getElementById("realtimeVolume").textContent="거래량: "+Number(v.volume).toLocaleString();document.getElementById("realtimeInfo").textContent="업데이트: "+v.updated;}catch(e){document.getElementById("realtimeInfo").textContent="실시간 데이터를 불러오지 못했습니다.";console.error("실시간 데이터 오류:",e);}}loadRealtime();setInterval(loadRealtime,30000);</script><script>
+(function(){
+async function syncLivePrice(){
+try{
+const r=await fetch("realtime_price.json?t="+Date.now());
+const d=await r.json();
+const price=Number(d.price);
+const el=document.getElementById("price");
+if(el&&Number.isFinite(price))el.textContent="$"+price.toFixed(4);
+const rp=document.getElementById("realtimePrice");
+if(rp&&Number.isFinite(price))rp.textContent="$"+price.toFixed(4);
+}catch(e){console.error("실시간 가격 오류:",e);}
+}
+syncLivePrice();
+setInterval(syncLivePrice,30000);
+})();
+</script></body>
+</html>
